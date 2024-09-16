@@ -62,9 +62,21 @@ jobs:
         run: >
           (Get-Content CMakeLists.txt) -replace '4.22.5', '${{ env.proto_version }}' | Set-Content CMakeLists.txt
 
-      - name: Configure CMake
-        # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-        # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
+      - name: Configure CMake for Linux and Windows
+        # For Linux case: Configure CMake to build protoc with static linkage to be able to run in systems with lower version of glibc and libstdc++.
+        if: ${{ matrix.os_family == 'linux' || matrix.os_family == 'windows' }}
+        run: >
+          cmake -B ${{ github.workspace }}/build
+          -G "Unix Makefiles"
+          -DCMAKE_CXX_STANDARD=14
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DBUILD_SHARED_LIBS=OFF
+          -DCMAKE_EXE_LINKER_FLAGS="-static"
+          -DZLIB_USE_STATIC_LIBS=ON
+
+      - name: Configure CMake for OSX
+        # Static linkage options leads to cmake failure due to some missing library (ld: library not found for -lcrt0.o).
+        if: ${{ matrix.os_family == 'osx' }} 
         run: >
           cmake -B ${{ github.workspace }}/build
           -G "Unix Makefiles"
